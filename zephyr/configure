@@ -1,0 +1,39 @@
+#!/bin/bash
+meson_args=()
+for i in "$@"; do
+    case "$i" in
+	[A-Z_]*=*)
+	    eval export "'$i'"
+	    ;;
+	*)
+	    meson_args+=("$i")
+	    ;;
+    esac
+done
+CROSS_FILE=cross-${CROSS_COMPILE_TARGET}.txt
+cflags=()
+for arg in ${TOOLCHAIN_C_FLAGS}; do
+    cflags+=("'$arg',")
+done
+
+cat > "${CROSS_FILE}" <<EOF
+[binaries]
+c = ['${CMAKE_C_COMPILER}', ${cflags[@]}]
+ar = '${CMAKE_AR}'
+as = '${CMAKE_AS}'
+nm = '${CMAKE_NM}'
+strip = '${CMAKE_STRIP}'
+
+[host_machine]
+system = 'unknown-system'
+cpu_family = '${CONFIG_ARCH}'
+cpu = '${CONFIG_ARCH}'
+endian = '${PICOLIBC_ENDIAN}'
+
+[properties]
+skip_sanity_check = true
+EOF
+
+rm -r build
+
+meson setup --cross-file "${CROSS_FILE}" -Dmultilib=false -Dspecsdir="${PICOLIBC_INSTALL_DIR}" -Dprefix="${PICOLIBC_INSTALL_DIR}" "${meson_args[@]}" "${PICOLIBC_DIR}" build
